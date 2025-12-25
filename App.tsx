@@ -70,9 +70,6 @@ const App: React.FC = () => {
         else newStats.desktopDeviceCount++;
       });
       
-      // Removed automatic toast calls from here to stop the frequent popups.
-      // Global updates are now visible via the Ticker and Journal instead of intrusive alerts.
-
       lastTicketCount.current = tickets.length;
       lastWinnerCount.current = currentWinners.length;
 
@@ -130,22 +127,48 @@ const App: React.FC = () => {
     }
   };
 
+  const validateForm = () => {
+    const cleanName = name.trim();
+    const cleanMobile = mobile.trim();
+
+    if (!cleanName || cleanName.length < 3) {
+      addToast("Invalid Name: Use at least 3 characters.", "warning");
+      return false;
+    }
+
+    const mobileRegex = /^03[0-9]{9}$/;
+    if (!mobileRegex.test(cleanMobile)) {
+      addToast("Invalid Mobile: Use Pakistan format (03XXXXXXXXX).", "warning");
+      return false;
+    }
+
+    if (!Object.values(PrizeType).includes(prize)) {
+      addToast("Invalid Selection: Please choose a valid prize.", "warning");
+      return false;
+    }
+
+    if (!file) {
+      addToast("Receipt Required: Please upload payment proof.", "warning");
+      return false;
+    }
+
+    return true;
+  };
+
   const handleBuyTicket = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) {
-      addToast("Receipt missing. System cannot verify.", "warning");
-      return;
-    }
+    
+    if (!validateForm()) return;
 
     setIsProcessing(true);
     try {
-      const base64 = await fileToBase64(file);
+      const base64 = await fileToBase64(file!);
       const ticketId = `VIP-${Math.floor(10000 + Math.random() * 90000)}`;
       
       await verifyPaymentScreenshot(base64);
       
-      const finalName = name.trim() || "Participant-" + ticketId.split('-')[1];
-      const finalMobile = mobile.trim() || "03000000000";
+      const finalName = name.trim();
+      const finalMobile = mobile.trim();
 
       const newTicket: Ticket = {
         id: Math.random().toString(36).substr(2, 9),
@@ -153,7 +176,7 @@ const App: React.FC = () => {
         name: finalName,
         mobile: finalMobile,
         prize,
-        proofUrl: `data:${file.type};base64,${base64}`,
+        proofUrl: `data:${file!.type};base64,${base64}`,
         status: 'pending',
         timestamp: Date.now(),
         referralCode: userReferralCode || finalMobile.slice(-4),
@@ -297,7 +320,7 @@ const App: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest ml-1">Name / نام</label>
-                          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name" className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4.5 focus:ring-1 focus:ring-yellow-500 text-white outline-none transition-all" />
+                          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name (Min 3 chars)" className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl px-6 py-4.5 focus:ring-1 focus:ring-yellow-500 text-white outline-none transition-all" />
                         </div>
                         <div className="space-y-2">
                           <label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest ml-1">Mobile / فون</label>
@@ -319,7 +342,7 @@ const App: React.FC = () => {
                       <div className="space-y-2">
                          <label className="text-[10px] font-black uppercase text-zinc-600 tracking-widest ml-1">Payment Receipt / رسید</label>
                          <div className="relative group">
-                            <input type="file" accept="image/*" required onChange={(e) => setFile(e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                            <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                             <div className="w-full py-10 border-2 border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center bg-zinc-900/20 group-hover:bg-zinc-900/40 group-hover:border-yellow-500/30 transition-all">
                                <div className="text-3xl mb-3">{file ? '✅' : '📷'}</div>
                                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{file ? file.name : 'Drop Receipt Image Here'}</span>
